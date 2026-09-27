@@ -1,0 +1,96 @@
+let products = [];
+let cart = JSON.parse(localStorage.getItem("talabak_cart") || "[]");
+
+const money = n => Number(n).toLocaleString("ar-EG") + " جنيه";
+
+async function loadProducts() {
+  try {
+    const q = document.getElementById("search").value;
+    const response = await fetch("/api/products?q=" + encodeURIComponent(q));
+    products = await response.json();
+
+    const box = document.getElementById("products");
+
+    if (!products.length) {
+      box.innerHTML = "<p>لا توجد منتجات حاليًا.</p>";
+      return;
+    }
+
+    box.innerHTML = products.map(p => `
+      <div class="product">
+        <div class="image">${p.image ? `<img src="${p.image}" style="width:100%;height:100%;object-fit:cover;border-radius:12px">` : "🛍️"}</div>
+        <h3>${p.name}</h3>
+        <div class="price">${money(p.price)}</div>
+        <small>المتوفر: ${p.stock}</small>
+        <br><br>
+        <button class="add" onclick="addToCart(${p.id})">
+          أضف للسلة
+        </button>
+      </div>
+    `).join("");
+
+  } catch (error) {
+    document.getElementById("products").innerHTML =
+      "<p>حدث خطأ في تحميل المنتجات.</p>";
+  }
+}
+
+function addToCart(id) {
+  const item = cart.find(x => x.id === id);
+
+  if (item) {
+    item.qty++;
+  } else {
+    cart.push({ id, qty: 1 });
+  }
+
+  saveCart();
+  alert("تمت إضافة المنتج للسلة 🛒");
+}
+
+function saveCart() {
+  localStorage.setItem("talabak_cart", JSON.stringify(cart));
+
+  document.getElementById("cartCount").textContent =
+    cart.reduce((sum, item) => sum + item.qty, 0);
+}
+
+function showCart() {
+  const box = document.getElementById("cartItems");
+
+  if (!cart.length) {
+    box.innerHTML = "<p>السلة فارغة.</p>";
+    document.getElementById("total").textContent = "";
+    document.getElementById("cart").style.display = "flex";
+    return;
+  }
+
+  let total = 0;
+
+  box.innerHTML = cart.map(item => {
+    const product = products.find(p => p.id === item.id);
+
+    if (!product) return "";
+
+    total += product.price * item.qty;
+
+    return `
+      <div class="cart-item">
+        <span>${product.name} × ${item.qty}</span>
+        <b>${money(product.price * item.qty)}</b>
+      </div>
+    `;
+  }).join("");
+
+  document.getElementById("total").textContent =
+    "الإجمالي: " + money(total);
+
+  document.getElementById("cart").style.display = "flex";
+}
+
+function closeCart() {
+  document.getElementById("cart").style.display = "none";
+}
+
+saveCart();
+loadProducts();
